@@ -304,17 +304,13 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 		try {
 			return LavaSrcTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
 		} catch (FriendlyException e) {
-			// 檢查是否為 401 未授權錯誤
-			// 只在自動模式下且未重試過時才嘗試刷新 token
 			if (!isRetry && is401Error(e) && this.tokenManager.isAutoFetch()) {
 				log.warn("Received 401 Unauthorized from Apple Music API. Attempting to refresh token...");
 				
 				try {
-					// 強制刷新 token
 					this.tokenManager.fetchNewToken();
 					log.info("Token refreshed successfully, retrying request...");
 					
-					// 獲取新 token 並重新構建請求（避免遞迴）
 					var newToken = this.tokenManager.getToken();
 					var retryRequest = new HttpGet(uri);
 					retryRequest.addHeader("Authorization", "Bearer " + newToken.apiToken);
@@ -322,22 +318,16 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 						retryRequest.addHeader("Origin", "https://" + newToken.origin);
 					}
 					
-					// 直接重試，不再遞迴調用 getJson
 					return LavaSrcTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), retryRequest);
 				} catch (IOException refreshError) {
 					log.error("Failed to refresh token: {}", refreshError.getMessage());
 					throw new IOException("Failed to refresh Apple Music token after 401 error", refreshError);
 				} catch (FriendlyException retryError) {
-					// 重試後仍然失敗
 					log.error("Request failed even after token refresh: {}", retryError.getMessage());
 					throw new IOException("Apple Music API request failed after token refresh", retryError);
 				}
 			}
 			
-			// 以下情況直接拋出原始異常：
-			// 1. 不是 401 錯誤
-			// 2. 已經重試過了（isRetry=true）
-			// 3. 手動模式（isAutoFetch=false）
 			if (is401Error(e) && !this.tokenManager.isAutoFetch()) {
 				log.error("Received 401 but auto-fetch is disabled. Please manually update your token.");
 				throw new IOException("Apple Music API returned 401. Your manually provided token may have expired. Please update your token configuration.", e);
@@ -347,9 +337,6 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 		}
 	}
 
-	/**
-	 * 檢查異常是否為 401 錯誤
-	 */
 	private boolean is401Error(Exception e) {
 		if (e == null) {
 			return false;
@@ -360,7 +347,6 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 			return false;
 		}
 		
-		// 檢查錯誤消息中是否包含 401 相關信息
 		return message.contains("401") || 
 		       message.contains("Unauthorized") ||
 		       message.toLowerCase().contains("unauthorized");

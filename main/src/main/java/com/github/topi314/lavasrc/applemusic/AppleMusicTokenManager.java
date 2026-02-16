@@ -22,7 +22,7 @@ public class AppleMusicTokenManager {
 	private static final Pattern SCRIPT_TAG_PATTERN = Pattern.compile("<script\\s+type=\"module\"\\s+crossorigin\\s+src=\"([^\"]+)\"");
 
 	private Token token;
-	private boolean autoFetch; // 標記是否為自動獲取模式
+	private boolean autoFetch;
 
 	public AppleMusicTokenManager(String mediaAPIToken) throws IOException {
 		if (mediaAPIToken == null || mediaAPIToken.isEmpty()) {
@@ -49,7 +49,6 @@ public class AppleMusicTokenManager {
 				log.info("Token expired, fetching new token...");
 				this.fetchNewToken();
 			} else {
-				// 手動提供的 token 過期時，不自動刷新，要求用戶更新
 				throw new IOException("Apple Music token has expired (expiry: " + this.token.expire + "). Please update your token configuration (mediaAPIToken or MusicKit key).");
 			}
 		}
@@ -73,12 +72,10 @@ public class AppleMusicTokenManager {
 		}
 
 		try {
-			// 處理 Base64URL 編碼（JWT 使用 Base64URL，需要轉換）
 			var base64Payload = parts[1]
 				.replace('-', '+')
 				.replace('_', '/');
 			
-			// 添加必要的 padding
 			int paddingLength = (4 - (base64Payload.length() % 4)) % 4;
 			base64Payload += "=".repeat(paddingLength);
 			
@@ -87,7 +84,6 @@ public class AppleMusicTokenManager {
 
 			var originNode = json.get("root_https_origin").index(0).text();
 			
-			// 獲取過期時間
 			var expiry = json.get("exp").asLong(0);
 			var expireInstant = expiry > 0 ? Instant.ofEpochSecond(expiry) : null;
 
@@ -105,17 +101,12 @@ public class AppleMusicTokenManager {
 		}
 	}
 
-	/**
-	 * 強制獲取新 token（public 以便在 401 錯誤時調用）
-	 */
 	public void fetchNewToken() throws IOException {
 		log.info("Fetching new Apple Music token from web...");
 		
 		try (var httpClient = HttpClients.createDefault()) {
-			// 1. 獲取主頁 HTML（使用 /us/browse 以獲得更穩定的頁面）
 			var mainPageHtml = fetchHtml(httpClient, "https://music.apple.com/us/browse");
 			
-			// 2. 提取 script 標籤 URL
 			var tokenScriptUrl = extractTokenScriptUrl(mainPageHtml);
 
 			if (tokenScriptUrl == null) {
@@ -124,10 +115,8 @@ public class AppleMusicTokenManager {
 
 			log.debug("Token script URL found: {}", tokenScriptUrl);
 
-			// 3. 獲取 JS 文件內容
 			var tokenScriptContent = fetchHtml(httpClient, tokenScriptUrl);
 			
-			// 4. 使用正則提取 token
 			var tokenMatcher = TOKEN_PATTERN.matcher(tokenScriptContent);
 
 			if (!tokenMatcher.find()) {
@@ -136,7 +125,6 @@ public class AppleMusicTokenManager {
 			
 			var extractedToken = tokenMatcher.group("token");
 			
-			// 檢查是否與舊 token 相同（用於調試）
 			if (this.token != null && extractedToken.equals(this.token.apiToken)) {
 				log.warn("Fetched token is identical to the old one. Token might be long-lived or fetching method needs update.");
 			}
@@ -151,7 +139,6 @@ public class AppleMusicTokenManager {
 
 	private String fetchHtml(CloseableHttpClient httpClient, String url) throws IOException {
 		var request = new HttpGet(url);
-		// 添加 User-Agent 避免被阻擋
 		request.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 		request.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
 		request.addHeader("Accept-Language", "en-US,en;q=0.9");
@@ -166,7 +153,6 @@ public class AppleMusicTokenManager {
 	}
 
 	private String extractTokenScriptUrl(String html) {
-		// 優先使用正則匹配（與 JS 代碼一致，更精確）
 		var matcher = SCRIPT_TAG_PATTERN.matcher(html);
 		if (matcher.find()) {
 			var scriptPath = matcher.group(1);
@@ -175,11 +161,9 @@ public class AppleMusicTokenManager {
 			return fullUrl;
 		}
 
-		// Fallback: 使用 Jsoup（兼容性更好）
 		log.debug("Regex match failed, trying Jsoup selector...");
 		var document = Jsoup.parse(html, "https://music.apple.com");
 		
-		// 嘗試多個選擇器
 		var selectors = new String[]{
 			"script[type=module][crossorigin][src]",
 			"script[type=module][src~=/assets/index.*.js]",
@@ -206,9 +190,6 @@ public class AppleMusicTokenManager {
 		return null;
 	}
 
-	/**
-	 * 檢查當前是否為自動獲取模式
-	 */
 	public boolean isAutoFetch() {
 		return this.autoFetch;
 	}
@@ -224,20 +205,13 @@ public class AppleMusicTokenManager {
 			this.expire = expire;
 		}
 
-		/**
-		 * 檢查 token 是否過期
-		 * - 提前 10 秒判斷過期（與 JS 代碼的 10000ms 一致）
-		 * - 沒有過期時間時認為長期有效
-		 */
 		public boolean isExpired() {
 			if (this.apiToken == null) {
 				return true;
 			}
 			if (this.expire == null) {
-				// 沒有過期時間，認為 token 長期有效（與 JS 代碼 _isTokenValid 邏輯一致）
 				return false;
 			}
-			// 提前 10 秒判斷過期（與 JS 代碼的 10000ms 一致）
 			return expire.minusSeconds(10).isBefore(Instant.now());
 		}
 	}
