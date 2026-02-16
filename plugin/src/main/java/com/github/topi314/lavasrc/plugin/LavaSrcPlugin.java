@@ -70,7 +70,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		JioSaavnConfig jioSaavnConfig,
 		ProxyConfigurationService proxyConfigurationService
 	) {
-		log.info("Loading LavaSrc plugin...");
+		log.info("Loading LavaSrc plugin (Modification)...");
 		this.sourcesConfig = sourcesConfig;
 		this.lyricsSourcesConfig = lyricsSourcesConfig;
 
