@@ -74,3 +74,10 @@ jobs:
           omitDraftDuringUpdate: true
           omitNameDuringUpdate: true
           omitPrereleaseDuringUpdate: true
+
+      - name: JitPack build info
+        if: github.event_name == 'release'
+        run: |
+          echo "Release published: ${{ github.event.release.tag_name }}"
+          echo "JitPack will auto-build via webhook"
+          echo "Check build status: https://jitpack.io/com/github/${{ github.repository }}/${{ github.event.release.tag_name }}"
