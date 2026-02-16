@@ -16,8 +16,8 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.tools.JsonBrowser;
 import com.sedmelluq.discord.lavaplayer.track.*;
-import org.jsoup.Jsoup;
-import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
 import org.jetbrains.annotations.NotNull;
@@ -43,6 +43,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class AppleMusicSourceManager extends MirroringAudioSourceManager implements AudioSearchManager {
+
+	private static final Logger log = LoggerFactory.getLogger(AppleMusicSourceManager.class);
 
 	public static final Pattern URL_PATTERN = Pattern.compile("(https?://)?(www\\.)?music\\.apple\\.com/((?<countrycode>[a-zA-Z]{2})/)?(?<type>album|playlist|artist|song)(/[a-zA-Z\\p{L}\\d\\-%]+)?/(?<identifier>[a-zA-Z\\d\\-.]+)(\\?i=(?<identifier2>\\d+))?");
 	public static final String SEARCH_PREFIX = "amsearch:";
@@ -71,9 +73,10 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 		this.countryCode = (countryCode == null || countryCode.isEmpty()) ? "US" : countryCode;
 
 		try {
+			// 當 mediaAPIToken 為 null 或空時，TokenManager 會自動從網站抓取
 			this.tokenManager = new AppleMusicTokenManager(mediaAPIToken);
 		} catch (IOException e) {
-			throw new RuntimeException("Failed to initialize token manager", e);
+			throw new RuntimeException("Failed to initialize Apple Music token manager: " + e.getMessage(), e);
 		}
 	}
 
@@ -270,7 +273,26 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 		return new BasicAudioSearchResult(tracks, albums, artists, playLists, terms);
 	}
 
+	/**
+	 * 執行 Apple Music API 請求，帶有 401 重試邏輯
+	 * 
+	 * @param uri API 端點 URL
+	 * @return JSON 響應
+	 * @throws IOException 如果請求失敗
+	 */
 	public JsonBrowser getJson(String uri) throws IOException {
+		return getJson(uri, false);
+	}
+
+	/**
+	 * 執行 Apple Music API 請求的內部方法
+	 * 
+	 * @param uri API 端點 URL
+	 * @param isRetry 是否為重試請求（避免無限循環）
+	 * @return JSON 響應
+	 * @throws IOException 如果請求失敗
+	 */
+	private JsonBrowser getJson(String uri, boolean isRetry) throws IOException {
 		var token = this.tokenManager.getToken();
 
 		var request = new HttpGet(uri);
@@ -278,7 +300,70 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 		if (token.origin != null && !token.origin.isEmpty()) {
 			request.addHeader("Origin", "https://" + token.origin);
 		}
-		return LavaSrcTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+		
+		try {
+			return LavaSrcTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+		} catch (FriendlyException e) {
+			// 檢查是否為 401 未授權錯誤
+			// 只在自動模式下且未重試過時才嘗試刷新 token
+			if (!isRetry && is401Error(e) && this.tokenManager.isAutoFetch()) {
+				log.warn("Received 401 Unauthorized from Apple Music API. Attempting to refresh token...");
+				
+				try {
+					// 強制刷新 token
+					this.tokenManager.fetchNewToken();
+					log.info("Token refreshed successfully, retrying request...");
+					
+					// 獲取新 token 並重新構建請求（避免遞迴）
+					var newToken = this.tokenManager.getToken();
+					var retryRequest = new HttpGet(uri);
+					retryRequest.addHeader("Authorization", "Bearer " + newToken.apiToken);
+					if (newToken.origin != null && !newToken.origin.isEmpty()) {
+						retryRequest.addHeader("Origin", "https://" + newToken.origin);
+					}
+					
+					// 直接重試，不再遞迴調用 getJson
+					return LavaSrcTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), retryRequest);
+				} catch (IOException refreshError) {
+					log.error("Failed to refresh token: {}", refreshError.getMessage());
+					throw new IOException("Failed to refresh Apple Music token after 401 error", refreshError);
+				} catch (FriendlyException retryError) {
+					// 重試後仍然失敗
+					log.error("Request failed even after token refresh: {}", retryError.getMessage());
+					throw new IOException("Apple Music API request failed after token refresh", retryError);
+				}
+			}
+			
+			// 以下情況直接拋出原始異常：
+			// 1. 不是 401 錯誤
+			// 2. 已經重試過了（isRetry=true）
+			// 3. 手動模式（isAutoFetch=false）
+			if (is401Error(e) && !this.tokenManager.isAutoFetch()) {
+				log.error("Received 401 but auto-fetch is disabled. Please manually update your token.");
+				throw new IOException("Apple Music API returned 401. Your manually provided token may have expired. Please update your token configuration.", e);
+			}
+			
+			throw e;
+		}
+	}
+
+	/**
+	 * 檢查異常是否為 401 錯誤
+	 */
+	private boolean is401Error(Exception e) {
+		if (e == null) {
+			return false;
+		}
+		
+		var message = e.getMessage();
+		if (message == null) {
+			return false;
+		}
+		
+		// 檢查錯誤消息中是否包含 401 相關信息
+		return message.contains("401") || 
+		       message.contains("Unauthorized") ||
+		       message.toLowerCase().contains("unauthorized");
 	}
 
 	public Map<String, String> getArtistCover(List<String> ids) throws IOException {
@@ -467,7 +552,6 @@ public class AppleMusicSourceManager extends MirroringAudioSourceManager impleme
 		}
 		return url.substring(url.lastIndexOf('/') + 1);
 	}
-
 
 	public static AppleMusicSourceManager fromMusicKitKey(String musicKitKey, String keyId, String teamId, String countryCode, AudioPlayerManager audioPlayerManager, MirroringAudioTrackResolver mirroringAudioTrackResolver) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		var base64 = musicKitKey.replaceAll("-----BEGIN PRIVATE KEY-----\n", "")
