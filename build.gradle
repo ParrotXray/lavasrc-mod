@@ -4,7 +4,7 @@ plugins {
 }
 
 allprojects {
-    group = "com.github.topi314.lavasrc"
+    group = "com.github.ParrotXray:lavasrc-mod"
     
     repositories {
         mavenLocal()
