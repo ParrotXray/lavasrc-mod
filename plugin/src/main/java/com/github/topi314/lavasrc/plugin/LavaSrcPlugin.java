@@ -343,7 +343,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		}
 		if (this.bilibili != null) {
 			log.info("Registering Bilibili audio source manager...");
-			manager.registerSourceManager(this.bilibili);
+			manager.registerSearchManager(this.bilibili);
 		}
 		return manager;
 	}
