@@ -19,6 +19,7 @@ public class SourcesConfig {
 	private boolean tidal = false;
 	private boolean ytdlp = false;
 	private boolean jiosaavn = false;
+	private boolean bilibili = false;
 
 	public boolean isSpotify() {
 		return this.spotify;
@@ -106,5 +107,13 @@ public class SourcesConfig {
 
 	public void setJiosaavn(boolean jiosaavn) {
 		this.jiosaavn = jiosaavn;
+	}
+
+	public boolean isBilibili() {
+		return this.bilibili;
+	}
+
+	public void setBilibili(boolean bilibili) {
+		this.bilibili = bilibili;
 	}
 }

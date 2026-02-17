@@ -1,4 +1,5 @@
 plugins {
+	kotlin("jvm")
 	id("dev.arbjerg.lavalink.gradle-plugin") version "1.0.15"
 }
 
@@ -22,7 +23,6 @@ dependencies {
 	compileOnly("com.github.topi314.lavasearch:lavasearch:1.0.0")
 	implementation("com.github.topi314.lavasearch:lavasearch-plugin-api:1.0.0")
 	implementation("com.github.topi314.lavalyrics:lavalyrics-plugin-api:1.0.0")
-	implementation("com.auth0:java-jwt:4.5.0")
 
 	// Copy lyrics.kt from main
 	project.project(":main").configurations["implementation"].dependencies.forEach {
@@ -46,4 +46,8 @@ publishing {
 			artifactId = base.archivesName.get()
 		}
 	}
+}
+
+kotlin {
+	jvmToolchain(17)
 }

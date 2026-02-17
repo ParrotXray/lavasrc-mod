@@ -5,6 +5,8 @@ import com.github.topi314.lavalyrics.api.LyricsManagerConfiguration;
 import com.github.topi314.lavasearch.SearchManager;
 import com.github.topi314.lavasearch.api.SearchManagerConfiguration;
 import com.github.topi314.lavasrc.applemusic.AppleMusicSourceManager;
+import com.github.topi314.lavasrc.bilibili.BilibiliAudioSourceManager;
+import com.github.topi314.lavasrc.plugin.config.BilibiliConfig;
 import com.github.topi314.lavasrc.deezer.DeezerAudioSourceManager;
 import com.github.topi314.lavasrc.deezer.DeezerAudioTrack;
 import com.github.topi314.lavasrc.flowerytts.FloweryTTSSourceManager;
@@ -51,6 +53,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 	private AudioPlayerManager manager;
 	private SpotifySourceManager spotify;
 	private AppleMusicSourceManager appleMusic;
+	private BilibiliAudioSourceManager bilibili;
 	private DeezerAudioSourceManager deezer;
 	private YandexMusicSourceManager yandexMusic;
 	private FloweryTTSSourceManager flowerytts;
@@ -68,6 +71,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		LyricsSourcesConfig lyricsSourcesConfig,
 		SpotifyConfig spotifyConfig,
 		AppleMusicConfig appleMusicConfig,
+		BilibiliConfig bilibiliConfig,
 		DeezerConfig deezerConfig,
 		YandexMusicConfig yandexMusicConfig,
 		FloweryTTSConfig floweryTTSConfig,
@@ -201,6 +205,20 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 
 			proxyConfigurationService.configure(this.jioSaavn, jioSaavnConfig.getProxy());
 		}
+
+		if (sourcesConfig.isBilibili()) {
+			this.bilibili = new BilibiliAudioSourceManager(
+				bilibiliConfig.getAllowSearch(),
+				bilibiliConfig.getAuth().getEnabled(),
+				bilibiliConfig.getAuth().getSessdata(),
+				bilibiliConfig.getAuth().getBiliJct(),
+				bilibiliConfig.getAuth().getDedeUserId(),
+				bilibiliConfig.getAuth().getBuvid3(),
+				bilibiliConfig.getAuth().getBuvid4(),
+				bilibiliConfig.getAuth().getAcTimeValue()
+			);
+			this.bilibili.setPlaylistPageCount(bilibiliConfig.getPlaylistPageCount());
+		}
 	}
 
 	private static boolean isNotEmpty(String str) {
@@ -318,6 +336,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		if (this.jioSaavn != null && this.sourcesConfig.isJiosaavn()) {
 			log.info("Registering JioSaavn search manager...");
 			manager.registerSearchManager(this.jioSaavn);
+		}
+		if (this.bilibili != null) {
+			log.info("Registering Bilibili audio source manager...");
+			manager.registerSourceManager(this.bilibili);
 		}
 		return manager;
 	}
