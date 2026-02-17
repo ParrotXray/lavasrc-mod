@@ -1,5 +1,8 @@
 package com.github.topi314.lavasrc.bilibili
 
+import com.github.topi314.lavasearch.AudioSearchManager
+import com.github.topi314.lavasearch.result.AudioSearchResult
+import com.github.topi314.lavasearch.result.BasicAudioSearchResult
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManager
 import com.sedmelluq.discord.lavaplayer.tools.DataFormatTools
@@ -31,7 +34,7 @@ class BilibiliAudioSourceManager(
     private val buvid3: String = "",
     private val buvid4: String = "",
     private val acTimeValue: String = ""
-) : AudioSourceManager {
+) : AudioSourceManager, AudioSearchManager {
     val log: Logger = LoggerFactory.getLogger(BilibiliAudioSourceManager::class.java)
 
     val httpInterface: HttpInterface
@@ -82,23 +85,22 @@ class BilibiliAudioSourceManager(
         }
     }
 
-    override fun getSourceName(): String? {
+    override fun getSourceName(): String {
         return "bilibili"
     }
 
     override fun loadItem(manager: AudioPlayerManager, reference: AudioReference): AudioItem? {
         log.debug("DEBUG: reference.identifier: ${reference.identifier}")
 
-        // Handle bilisearch: prefix for search functionality
-        if (reference.identifier.startsWith("bilisearch:")) {
+        if (reference.identifier.startsWith(SEARCH_PREFIX)) {
             if (!allowSearch) {
                 log.debug("Bilibili search is disabled in configuration")
                 return BasicAudioPlaylist("Bilibili Search Disabled", emptyList(), null, true)
             }
-
-            val searchQuery = reference.identifier.substring("bilisearch:".length).trim()
+            val searchQuery = reference.identifier.removePrefix(SEARCH_PREFIX).trim()
             log.debug("DEBUG: Bilibili search query: $searchQuery")
-            return searchBilibili(searchQuery)
+            val tracks = doSearch(searchQuery)
+            return BasicAudioPlaylist("Bilibili Search: $searchQuery", tracks, null, true)
         }
 
         // Handle b23.tv short URLs by resolving them first
@@ -199,7 +201,14 @@ class BilibiliAudioSourceManager(
         }
     }
 
-    private fun searchBilibili(query: String): AudioPlaylist? {
+    override fun loadSearch(query: String, types: Set<AudioSearchResult.Type>): AudioSearchResult? {
+        if (!query.startsWith(SEARCH_PREFIX)) return null
+        val searchQuery = query.removePrefix(SEARCH_PREFIX).trim()
+        val tracks = doSearch(searchQuery)
+        return BasicAudioSearchResult(tracks, emptyList(), emptyList(), emptyList(), emptyList())
+    }
+
+    private fun doSearch(query: String): List<AudioTrack> {
         return try {
             val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
 
@@ -225,7 +234,7 @@ class BilibiliAudioSourceManager(
                     -400 -> log.error("Bad request (-400): Invalid parameters")
                 }
 
-                return BasicAudioPlaylist("Bilibili Search Results", emptyList(), null, true)
+                return emptyList()
             }
 
             val searchResults = responseJson.get("data").get("result")
@@ -244,7 +253,7 @@ class BilibiliAudioSourceManager(
                         val cleanTitle = cleanHtmlTags(title)
                         val cleanAuthor = cleanHtmlTags(author)
 
-                        val track = BilibiliAudioTrack(
+                        tracks.add(BilibiliAudioTrack(
                             AudioTrackInfo(
                                 cleanTitle,
                                 cleanAuthor,
@@ -259,8 +268,7 @@ class BilibiliAudioSourceManager(
                             bvid,
                             item.get("cid")?.asLong(0) ?: 0L,
                             this
-                        )
-                        tracks.add(track)
+                        ))
                     }
                 } catch (e: Exception) {
                     log.warn("Failed to parse search result item", e)
@@ -268,11 +276,11 @@ class BilibiliAudioSourceManager(
             }
 
             log.debug("DEBUG: Found ${tracks.size} tracks for query: $query")
-            BasicAudioPlaylist("Bilibili Search: $query", tracks, null, true)
+            tracks
 
         } catch (e: Exception) {
             log.error("Error during Bilibili search", e)
-            BasicAudioPlaylist("Bilibili Search Results", emptyList(), null, true)
+            emptyList()
         }
     }
 
@@ -511,6 +519,7 @@ class BilibiliAudioSourceManager(
 
     companion object {
         const val BASE_URL = "https://api.bilibili.com/"
+        const val SEARCH_PREFIX = "bilisearch:"
 
         private val URL_PATTERN = Pattern.compile(
             "^https?://(?:(?:www|m)\\.)?(?:bilibili\\.com|b23\\.tv)/(?<type>video|audio)/(?<id>(?:(?<audioType>am|au|av)?(?<audioId>[0-9]+))|[A-Za-z0-9]+)/?(?:\\?.*)?$"

@@ -303,6 +303,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering JioSaavn audio source manager...");
 			manager.registerSourceManager(this.jioSaavn);
 		}
+		if (this.bilibili != null) {
+			log.info("Registering Bilibili audio source manager...");
+			manager.registerSourceManager(this.bilibili);
+		}
 		return manager;
 	}
 
