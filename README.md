@@ -30,6 +30,7 @@ plugins:
     sources:
       spotify: true
       applemusic: true
+      bilibili: true
       youtube: true
     spotify:
       clientId: ""
@@ -56,6 +57,17 @@ plugins:
         -----END PRIVATE KEY-----
       playlistLoadLimit: 6 # The number of pages at 300 tracks each
       albumLoadLimit: 6 # The number of pages at 300 tracks each
+    bilibili:
+      allowSearch: true # Enable bilisearch: prefix search
+      playlistPageCount: -1 # Max pages for audio playlists (-1 = unlimited)
+      auth:
+        enabled: false # Enable cookie authentication
+      # sessdata: "your SESSDATA cookie"
+      # biliJct: "your bili_jct cookie"
+      # dedeUserId: "your DedeUserID cookie"
+      # buvid3: "your buvid3 cookie" # Optional, auto-generated if empty
+      # buvid4: "your buvid4 cookie" # Optional, auto-generated if empty
+      # acTimeValue: "your ac_time_value" # Optional, enables cookie refresh reminder (new values are logged; update application.yml manually)
 ```
 
 ## Documentation

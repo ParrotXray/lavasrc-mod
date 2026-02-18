@@ -18,6 +18,7 @@ plugins:
       qobuz: false # Enabled qobuz source
       ytdlp: false # Enable yt-dlp source
       jiosaavn: false # Enable the JioSaavn source
+      bilibili: false # Enable Bilibili source
     lyrics-sources:
       spotify: false # Enable Spotify lyrics source
       deezer: false # Enable Deezer lyrics source
@@ -102,6 +103,17 @@ plugins:
 #        url: "https://example.org" # The HTTP proxy to use
 #        username: "my-bot" # Optional username to authenticate with the proxy
 #        password: "youshallpass" # Optional password to authenticate with the proxy
+    bilibili:
+      allowSearch: true # Enable bilisearch: prefix search
+      playlistPageCount: -1 # Max pages for audio playlists (-1 = unlimited)
+      auth:
+        enabled: false # Enable cookie authentication
+#        sessdata: "your SESSDATA cookie"
+#        biliJct: "your bili_jct cookie"
+#        dedeUserId: "your DedeUserID cookie"
+#        buvid3: "your buvid3 cookie" # Optional, auto-generated if empty
+#        buvid4: "your buvid4 cookie" # Optional, auto-generated if empty
+#        acTimeValue: "your ac_time_value" # Optional, enables cookie refresh reminder (new values are logged; update application.yml manually)
 
 server: # REST and WS server
   port: 2333

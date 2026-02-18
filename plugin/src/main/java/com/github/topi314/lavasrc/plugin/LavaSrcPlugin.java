@@ -5,6 +5,8 @@ import com.github.topi314.lavalyrics.api.LyricsManagerConfiguration;
 import com.github.topi314.lavasearch.SearchManager;
 import com.github.topi314.lavasearch.api.SearchManagerConfiguration;
 import com.github.topi314.lavasrc.applemusic.AppleMusicSourceManager;
+import com.github.topi314.lavasrc.bilibili.BilibiliAudioSourceManager;
+import com.github.topi314.lavasrc.plugin.config.BilibiliConfig;
 import com.github.topi314.lavasrc.deezer.DeezerAudioSourceManager;
 import com.github.topi314.lavasrc.deezer.DeezerAudioTrack;
 import com.github.topi314.lavasrc.flowerytts.FloweryTTSSourceManager;
@@ -21,6 +23,8 @@ import com.github.topi314.lavasrc.vkmusic.VkMusicSourceManager;
 import com.github.topi314.lavasrc.yandexmusic.YandexMusicSourceManager;
 import com.github.topi314.lavasrc.youtube.YoutubeSearchManager;
 import com.github.topi314.lavasrc.ytdlp.YtdlpAudioSourceManager;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import dev.arbjerg.lavalink.api.AudioPlayerManagerConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -30,6 +34,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.security.KeyFactory;
+import java.security.interfaces.ECPrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Base64;
 
 @Service
 @RestController
@@ -42,6 +53,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 	private AudioPlayerManager manager;
 	private SpotifySourceManager spotify;
 	private AppleMusicSourceManager appleMusic;
+	private BilibiliAudioSourceManager bilibili;
 	private DeezerAudioSourceManager deezer;
 	private YandexMusicSourceManager yandexMusic;
 	private FloweryTTSSourceManager flowerytts;
@@ -59,6 +71,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		LyricsSourcesConfig lyricsSourcesConfig,
 		SpotifyConfig spotifyConfig,
 		AppleMusicConfig appleMusicConfig,
+		BilibiliConfig bilibiliConfig,
 		DeezerConfig deezerConfig,
 		YandexMusicConfig yandexMusicConfig,
 		FloweryTTSConfig floweryTTSConfig,
@@ -90,7 +103,19 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			}
 		}
 		if (sourcesConfig.isAppleMusic()) {
-			this.appleMusic = new AppleMusicSourceManager(pluginConfig.getProviders(), appleMusicConfig.getMediaAPIToken(), appleMusicConfig.getCountryCode(), unused -> manager);
+			String appleMusicToken = appleMusicConfig.getMediaAPIToken();
+			if (isNotEmpty(appleMusicConfig.getMusicKitKey()) &&
+				isNotEmpty(appleMusicConfig.getTeamID()) &&
+				isNotEmpty(appleMusicConfig.getKeyID())) {
+				log.info("Generating Apple Music token from MusicKit credentials...");
+				appleMusicToken = generateMusicKitToken(
+					appleMusicConfig.getTeamID(),
+					appleMusicConfig.getKeyID(),
+					appleMusicConfig.getMusicKitKey()
+				);
+				log.info("Apple Music MusicKit token generated successfully");
+			}
+			this.appleMusic = new AppleMusicSourceManager(pluginConfig.getProviders(), appleMusicToken, appleMusicConfig.getCountryCode(), unused -> manager);
 			if (appleMusicConfig.getPlaylistLoadLimit() > 0) {
 				appleMusic.setPlaylistPageLimit(appleMusicConfig.getPlaylistLoadLimit());
 			}
@@ -180,6 +205,56 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 
 			proxyConfigurationService.configure(this.jioSaavn, jioSaavnConfig.getProxy());
 		}
+
+		if (sourcesConfig.isBilibili()) {
+			if (bilibiliConfig.getAuth().getEnabled()) {
+				log.info("Bilibili authentication: SESSDATA={}***, UserID={}***",
+					bilibiliConfig.getAuth().getSessdata().substring(0, Math.min(8, bilibiliConfig.getAuth().getSessdata().length())),
+					bilibiliConfig.getAuth().getDedeUserId().substring(0, Math.min(4, bilibiliConfig.getAuth().getDedeUserId().length())));
+			} else {
+				log.info("Bilibili authentication: DISABLED (guest mode)");
+			}
+			this.bilibili = new BilibiliAudioSourceManager(
+				bilibiliConfig.getAllowSearch(),
+				bilibiliConfig.getAuth().getEnabled(),
+				bilibiliConfig.getAuth().getSessdata(),
+				bilibiliConfig.getAuth().getBiliJct(),
+				bilibiliConfig.getAuth().getDedeUserId(),
+				bilibiliConfig.getAuth().getBuvid3(),
+				bilibiliConfig.getAuth().getBuvid4(),
+				bilibiliConfig.getAuth().getAcTimeValue()
+			);
+			this.bilibili.setPlaylistPageCount(bilibiliConfig.getPlaylistPageCount());
+		}
+	}
+
+	private static boolean isNotEmpty(String str) {
+		return str != null && !str.trim().isEmpty();
+	}
+
+	private static String generateMusicKitToken(String teamID, String keyID, String musicKitKey) {
+		try {
+			String cleanKey = musicKitKey
+				.replace("-----BEGIN PRIVATE KEY-----", "")
+				.replace("-----END PRIVATE KEY-----", "")
+				.replaceAll("\\s", "");
+
+			byte[] keyBytes = Base64.getDecoder().decode(cleanKey);
+			PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+			KeyFactory kf = KeyFactory.getInstance("EC");
+			ECPrivateKey privateKey = (ECPrivateKey) kf.generatePrivate(spec);
+
+			Algorithm algorithm = Algorithm.ECDSA256(null, privateKey);
+
+			return JWT.create()
+				.withIssuer(teamID)
+				.withIssuedAt(Instant.now())
+				.withExpiresAt(Instant.now().plus(Duration.ofDays(180)))
+				.withKeyId(keyID)
+				.sign(algorithm);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to generate Apple Music MusicKit JWT token", e);
+		}
 	}
 
 	private boolean hasNewYoutubeSource() {
@@ -235,6 +310,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering JioSaavn audio source manager...");
 			manager.registerSourceManager(this.jioSaavn);
 		}
+		if (this.bilibili != null) {
+			log.info("Registering Bilibili audio source manager...");
+			manager.registerSourceManager(this.bilibili);
+		}
 		return manager;
 	}
 
@@ -268,6 +347,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		if (this.jioSaavn != null && this.sourcesConfig.isJiosaavn()) {
 			log.info("Registering JioSaavn search manager...");
 			manager.registerSearchManager(this.jioSaavn);
+		}
+		if (this.bilibili != null) {
+			log.info("Registering Bilibili search manager...");
+			manager.registerSearchManager(this.bilibili);
 		}
 		return manager;
 	}
