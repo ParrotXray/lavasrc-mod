@@ -522,8 +522,6 @@ class BilibiliAudioSourceManager(
         return BilibiliAudioTrack(trackInfo, trackType, DataFormatTools.readNullableText(input), DataFormatTools.readNullableText(input).toLong(), this)
     }
 
-    // ── WBI signing ──────────────────────────────────────────────────────────
-
     @Volatile private var wbiKeys: String? = null
     @Volatile private var wbiKeysExpiry: Long = 0L
 
@@ -570,8 +568,6 @@ class BilibiliAudioSourceManager(
         val wRid = md5Bytes.joinToString("") { "%02x".format(it) }
         return "$query&w_rid=$wRid"
     }
-
-    // ── Bilibili lyrics via CC subtitles ─────────────────────────────────────
 
     override fun loadLyrics(audioTrack: AudioTrack): AudioLyrics? {
         val bilibiliTrack = audioTrack as? BilibiliAudioTrack ?: return null
@@ -628,8 +624,6 @@ class BilibiliAudioSourceManager(
             null
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     override fun shutdown() {
         //
