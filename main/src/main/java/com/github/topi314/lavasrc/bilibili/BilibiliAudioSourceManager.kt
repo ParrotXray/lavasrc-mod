@@ -62,6 +62,15 @@ class BilibiliAudioSourceManager(
         )
         httpInterfaceManager.setHttpContextFilter(updatedFilter)
 
+        // Log authentication status
+        if (isAuthenticated) {
+            log.info("Bilibili source manager initialized with SESSDATA={}***, UserID={}***",
+                sessdata.substring(0, minOf(8, sessdata.length)),
+                dedeUserId.substring(0, minOf(4, dedeUserId.length)))
+        } else {
+            log.info("Bilibili source manager initialized in guest mode (authentication disabled)")
+        }
+
         // Check cookie state on startup and remind user if refresh is needed
         when {
             canRefreshCookies -> {
