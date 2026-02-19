@@ -45,7 +45,9 @@ class BilibiliAudioTrack(
                 .values()[0].`as`(String::class.java)
         }
         TrackType.VIDEO -> {
-            val query = sourceManager.signWbi(mapOf("bvid" to id, "cid" to cid.toString(), "fnval" to "16"))
+            val query = sourceManager.signWbi(
+                mapOf("bvid" to id, "cid" to cid.toString(), "fnval" to "16", "qn" to "120")
+            )
             val response = sourceManager.httpInterface.execute(
                 HttpGet("${BASE_URL}x/player/wbi/playurl?$query")
             )

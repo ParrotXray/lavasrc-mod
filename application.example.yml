@@ -21,6 +21,7 @@ plugins:
       bilibili: false # Enable Bilibili source
     lyrics-sources:
       spotify: false # Enable Spotify lyrics source
+      bilibili: false # Enable Bilibili lyrics source
       deezer: false # Enable Deezer lyrics source
       youtube: false # Enable YouTube lyrics source
       yandexmusic: false # Enable Yandex Music lyrics source

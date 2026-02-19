@@ -589,7 +589,9 @@ class BilibiliAudioSourceManager(
             }
             if (cid == 0L) return null
 
-            val query = signWbi(mapOf("bvid" to bvid, "cid" to cid.toString()))
+            val query = signWbi(
+                mapOf("bvid" to bvid, "cid" to cid.toString(), "fnval" to "16", "qn" to "120")
+            )
             val playerResponse = httpInterface.execute(HttpGet("${BASE_URL}x/player/wbi/v2?$query"))
             val playerJson = JsonBrowser.parse(playerResponse.entity.content)
 
