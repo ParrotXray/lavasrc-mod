@@ -102,6 +102,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 				this.spotify.setLocalFiles(spotifyConfig.isLocalFiles());
 			}
 		}
+
 		if (sourcesConfig.isAppleMusic()) {
 			String appleMusicToken = appleMusicConfig.getMediaAPIToken();
 			if (isNotEmpty(appleMusicConfig.getMusicKitKey()) &&
@@ -123,6 +124,21 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 				appleMusic.setAlbumPageLimit(appleMusicConfig.getAlbumLoadLimit());
 			}
 		}
+
+		if (sourcesConfig.isBilibili() || lyricsSourcesConfig.isBilibili()) {
+			this.bilibili = new BilibiliAudioSourceManager(
+				bilibiliConfig.getAllowSearch(),
+				bilibiliConfig.getAuth().getEnabled(),
+				bilibiliConfig.getAuth().getSessdata(),
+				bilibiliConfig.getAuth().getBiliJct(),
+				bilibiliConfig.getAuth().getDedeUserId(),
+				bilibiliConfig.getAuth().getBuvid3(),
+				bilibiliConfig.getAuth().getBuvid4(),
+				bilibiliConfig.getAuth().getAcTimeValue()
+			);
+			this.bilibili.setPlaylistPageCount(bilibiliConfig.getPlaylistPageCount());
+		}
+
 		if (sourcesConfig.isDeezer() || lyricsSourcesConfig.isDeezer()) {
 			this.deezer = new DeezerAudioSourceManager(deezerConfig.getMasterDecryptionKey(), deezerConfig.getArl(), deezerConfig.getFormats());
 		}
@@ -161,6 +177,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 				this.flowerytts.setAudioFormat(floweryTTSConfig.getAudioFormat());
 			}
 		}
+
 		if (sourcesConfig.isYoutube() || lyricsSourcesConfig.isYoutube()) {
 			if (hasNewYoutubeSource()) {
 				log.info("Registering Youtube Source audio source manager...");
@@ -169,6 +186,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 				throw new IllegalStateException("Youtube LavaSearch requires the new Youtube Source plugin to be enabled.");
 			}
 		}
+
 		if (sourcesConfig.isVkMusic() || lyricsSourcesConfig.isVkMusic()) {
 			this.vkMusic = new VkMusicSourceManager(vkMusicConfig.getUserToken());
 			proxyConfigurationService.configure(this.vkMusic, vkMusicConfig.getProxy());
@@ -183,15 +201,18 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 				vkMusic.setRecommendationsLoadLimit(vkMusicConfig.getRecommendationLoadLimit());
 			}
 		}
+
 		if (sourcesConfig.isTidal()) {
 			this.tidal = new TidalSourceManager(pluginConfig.getProviders(), tidalConfig.getCountryCode(), unused -> this.manager, tidalConfig.getToken());
 			if (tidalConfig.getSearchLimit() > 0) {
 				this.tidal.setSearchLimit(tidalConfig.getSearchLimit());
 			}
 		}
+
 		if (sourcesConfig.isQobuz()) {
 			this.qobuz = new QobuzAudioSourceManager(qobuzConfig.getUserOauthToken(), qobuzConfig.getAppId(), qobuzConfig.getAppSecret());
 		}
+		
 		if (sourcesConfig.isYtdlp()) {
 			this.ytdlp = new YtdlpAudioSourceManager(ytdlpConfig.getPath(), ytdlpConfig.getSearchLimit(), ytdlpConfig.getCustomLoadArgs(), ytdlpConfig.getCustomPlaybackArgs());
 		}
@@ -204,27 +225,6 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			this.jioSaavn = new JioSaavnAudioSourceManager(jioSaavnConfig.buildConfig());
 
 			proxyConfigurationService.configure(this.jioSaavn, jioSaavnConfig.getProxy());
-		}
-
-		if (sourcesConfig.isBilibili()) {
-			if (bilibiliConfig.getAuth().getEnabled()) {
-				log.info("Bilibili authentication: SESSDATA={}***, UserID={}***",
-					bilibiliConfig.getAuth().getSessdata().substring(0, Math.min(8, bilibiliConfig.getAuth().getSessdata().length())),
-					bilibiliConfig.getAuth().getDedeUserId().substring(0, Math.min(4, bilibiliConfig.getAuth().getDedeUserId().length())));
-			} else {
-				log.info("Bilibili authentication: DISABLED (guest mode)");
-			}
-			this.bilibili = new BilibiliAudioSourceManager(
-				bilibiliConfig.getAllowSearch(),
-				bilibiliConfig.getAuth().getEnabled(),
-				bilibiliConfig.getAuth().getSessdata(),
-				bilibiliConfig.getAuth().getBiliJct(),
-				bilibiliConfig.getAuth().getDedeUserId(),
-				bilibiliConfig.getAuth().getBuvid3(),
-				bilibiliConfig.getAuth().getBuvid4(),
-				bilibiliConfig.getAuth().getAcTimeValue()
-			);
-			this.bilibili.setPlaylistPageCount(bilibiliConfig.getPlaylistPageCount());
 		}
 	}
 
@@ -278,6 +278,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering Apple Music audio source manager...");
 			manager.registerSourceManager(this.appleMusic);
 		}
+		if (this.bilibili != null) {
+			log.info("Registering Bilibili audio source manager...");
+			manager.registerSourceManager(this.bilibili);
+		}
 		if (this.deezer != null && this.sourcesConfig.isDeezer()) {
 			log.info("Registering Deezer audio source manager...");
 			manager.registerSourceManager(this.deezer);
@@ -310,10 +314,6 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering JioSaavn audio source manager...");
 			manager.registerSourceManager(this.jioSaavn);
 		}
-		if (this.bilibili != null) {
-			log.info("Registering Bilibili audio source manager...");
-			manager.registerSourceManager(this.bilibili);
-		}
 		return manager;
 	}
 
@@ -327,6 +327,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		if (this.appleMusic != null && this.sourcesConfig.isAppleMusic()) {
 			log.info("Registering Apple Music search manager...");
 			manager.registerSearchManager(this.appleMusic);
+		}
+		if (this.bilibili != null) {
+			log.info("Registering Bilibili search manager...");
+			manager.registerSearchManager(this.bilibili);
 		}
 		if (this.deezer != null && this.sourcesConfig.isDeezer()) {
 			log.info("Registering Deezer search manager...");
@@ -348,10 +352,6 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering JioSaavn search manager...");
 			manager.registerSearchManager(this.jioSaavn);
 		}
-		if (this.bilibili != null) {
-			log.info("Registering Bilibili search manager...");
-			manager.registerSearchManager(this.bilibili);
-		}
 		return manager;
 	}
 
@@ -361,6 +361,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		if (this.spotify != null && this.lyricsSourcesConfig.isSpotify()) {
 			log.info("Registering Spotify lyrics manager...");
 			manager.registerLyricsManager(this.spotify);
+		}
+		if (this.bilibili != null && this.lyricsSourcesConfig.isBilibili()) {
+			log.info("Registering Bilibili lyrics manager...");
+			manager.registerLyricsManager(this.bilibili);
 		}
 		if (this.deezer != null && this.lyricsSourcesConfig.isDeezer()) {
 			log.info("Registering Deezer lyrics manager...");
