@@ -126,13 +126,6 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		}
 
 		if (sourcesConfig.isBilibili() || lyricsSourcesConfig.isBilibili()) {
-			if (bilibiliConfig.getAuth().getEnabled()) {
-				log.info("Bilibili authentication: SESSDATA={}***, UserID={}***",
-					bilibiliConfig.getAuth().getSessdata().substring(0, Math.min(8, bilibiliConfig.getAuth().getSessdata().length())),
-					bilibiliConfig.getAuth().getDedeUserId().substring(0, Math.min(4, bilibiliConfig.getAuth().getDedeUserId().length())));
-			} else {
-				log.info("Bilibili authentication: DISABLED (guest mode)");
-			}
 			this.bilibili = new BilibiliAudioSourceManager(
 				bilibiliConfig.getAllowSearch(),
 				bilibiliConfig.getAuth().getEnabled(),
