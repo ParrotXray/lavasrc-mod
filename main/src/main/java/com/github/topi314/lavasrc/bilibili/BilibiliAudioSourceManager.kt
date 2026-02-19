@@ -531,11 +531,10 @@ class BilibiliAudioSourceManager(
         wbiKeys?.takeIf { System.currentTimeMillis() < wbiKeysExpiry }?.let { return it }
 
         val response = httpInterface.execute(HttpGet("${BASE_URL}x/web-interface/nav"))
-        val bodyString = org.apache.http.util.EntityUtils.toString(response.entity, java.nio.charset.StandardCharsets.UTF_8)
-        val json = JsonBrowser.parse(bodyString)
+        val json = JsonBrowser.parse(response.entity.content)
 
         if (json.get("code").asLong(-1) != 0L) {
-            throw IllegalStateException("Failed to fetch WBI keys: ${json.get("message").text()}")
+             return null
         }
 
         val wbiImg = json.get("data").get("wbi_img")
