@@ -533,10 +533,6 @@ class BilibiliAudioSourceManager(
         val response = httpInterface.execute(HttpGet("${BASE_URL}x/web-interface/nav"))
         val json = JsonBrowser.parse(response.entity.content)
 
-        if (json.get("code").asLong(-1) != 0L) {
-             return null
-        }
-
         val wbiImg = json.get("data").get("wbi_img")
         val imgUrl = wbiImg.get("img_url").text()
             ?: throw IllegalStateException("Missing img_url in WBI response")
