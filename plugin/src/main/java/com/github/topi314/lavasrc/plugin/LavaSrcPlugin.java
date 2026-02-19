@@ -125,7 +125,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			}
 		}
 
-		if (sourcesConfig.isBilibili()) {
+		if (sourcesConfig.isBilibili() || lyricsSourcesConfig.isBilibili()) {
 			if (bilibiliConfig.getAuth().getEnabled()) {
 				log.info("Bilibili authentication: SESSDATA={}***, UserID={}***",
 					bilibiliConfig.getAuth().getSessdata().substring(0, Math.min(8, bilibiliConfig.getAuth().getSessdata().length())),
@@ -368,6 +368,10 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 		if (this.spotify != null && this.lyricsSourcesConfig.isSpotify()) {
 			log.info("Registering Spotify lyrics manager...");
 			manager.registerLyricsManager(this.spotify);
+		}
+		if (this.bilibili != null && this.lyricsSourcesConfig.isBilibili()) {
+			log.info("Registering Bilibili lyrics manager...");
+			manager.registerLyricsManager(this.bilibili);
 		}
 		if (this.deezer != null && this.lyricsSourcesConfig.isDeezer()) {
 			log.info("Registering Deezer lyrics manager...");

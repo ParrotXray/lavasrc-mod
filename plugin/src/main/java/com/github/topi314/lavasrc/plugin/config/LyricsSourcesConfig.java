@@ -14,6 +14,7 @@ public class LyricsSourcesConfig {
 	private boolean yandexMusic = false;
 	private boolean vkMusic = false;
 	private boolean lrcLib = false;
+	private boolean bilibili = false;
 
 	public boolean isSpotify() {
 		return this.spotify;
@@ -23,6 +24,14 @@ public class LyricsSourcesConfig {
 		this.spotify = spotify;
 	}
 
+	public boolean isBilibili() {
+		return this.bilibili;
+	}
+
+	public void setBilibili(boolean bilibili) {
+		this.bilibili = bilibili;
+	}
+	
 	public boolean isDeezer() {
 		return this.deezer;
 	}
