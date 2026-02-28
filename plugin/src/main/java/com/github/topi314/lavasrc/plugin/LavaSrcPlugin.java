@@ -278,7 +278,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering Apple Music audio source manager...");
 			manager.registerSourceManager(this.appleMusic);
 		}
-		if (this.bilibili != null) {
+		if (this.bilibili != null && this.sourcesConfig.isBilibili()) {
 			log.info("Registering Bilibili audio source manager...");
 			manager.registerSourceManager(this.bilibili);
 		}
@@ -286,7 +286,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering Deezer audio source manager...");
 			manager.registerSourceManager(this.deezer);
 		}
-		if (this.yandexMusic != null) {
+		if (this.yandexMusic != null && this.sourcesConfig.isYandexMusic()) {
 			log.info("Registering Yandex Music audio source manager...");
 			manager.registerSourceManager(this.yandexMusic);
 		}
@@ -294,7 +294,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering Flowery TTS audio source manager...");
 			manager.registerSourceManager(this.flowerytts);
 		}
-		if (this.vkMusic != null) {
+		if (this.vkMusic != null && this.sourcesConfig.isVkMusic()) {
 			log.info("Registering Vk Music audio source manager...");
 			manager.registerSourceManager(this.vkMusic);
 		}
@@ -328,7 +328,7 @@ public class LavaSrcPlugin implements AudioPlayerManagerConfiguration, SearchMan
 			log.info("Registering Apple Music search manager...");
 			manager.registerSearchManager(this.appleMusic);
 		}
-		if (this.bilibili != null) {
+		if (this.bilibili != null && this.sourcesConfig.isBilibili()) {
 			log.info("Registering Bilibili search manager...");
 			manager.registerSearchManager(this.bilibili);
 		}
