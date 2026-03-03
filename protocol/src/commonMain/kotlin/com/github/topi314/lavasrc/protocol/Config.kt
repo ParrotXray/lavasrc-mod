@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class Config(
     val spotify: SpotifyConfig? = null,
     val appleMusic: AppleMusicConfig? = null,
+    val bilibili: BilibiliConfig? = null,
     val deezer: DeezerConfig? = null,
     val yandexMusic: YandexMusicConfig? = null,
     val vkMusic: VkMusicConfig? = null,
@@ -20,6 +21,12 @@ data class SpotifyConfig(
     val spDc: String? = null,
     val preferAnonymousToken: Boolean? = null,
     val customTokenEndpoint: String? = null,
+)
+
+@Serializable
+data class BilibiliConfig(
+    val allowSearch: Boolean? = null,
+    val playlistPageCount: Int? = null,
 )
 
 @Serializable
@@ -65,6 +72,8 @@ data class QobuzConfig(
 data class YtdlpConfig(
     val path: String? = null,
     val searchLimit: Int? = null,
+    val mixPlaylistLoadLimit: Int? = null,
+    val playlistLoadLimit: Int? = null,
     val customLoadArgs: List<String>? = null,
     val customPlaybackArgs: List<String>? = null,
 )
