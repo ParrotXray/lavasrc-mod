@@ -35,6 +35,12 @@ public class SpotifyTokenTracker {
 
 	private static final String SECRETS_URL = 
 		"https://raw.githubusercontent.com/xyloflake/spot-secrets-go/refs/heads/main/secrets/secretDict.json";
+
+	private static final int[] FALLBACK_SECRET_DATA = {
+		99, 111, 47, 88, 49, 56, 118, 65, 52, 67, 50, 104, 117, 101, 55, 94, 95,
+		75, 94, 49, 69, 36, 85, 64, 74, 60
+	};
+	private static final String FALLBACK_SECRET_VERSION = "19";
 	
 	private static final Pattern SECRET_PATTERN = Pattern.compile("\"secret\":\\[(\\d+(?:,\\d+)+)]");
 	
@@ -266,6 +272,13 @@ public class SpotifyTokenTracker {
 		} catch (Exception e) {
 			log.warn("Failed to fetch secret from GitHub: {}, trying Spotify web scraping", e.getMessage());
 		}
+
+		try {
+			useFallbackData();
+			log.warn("Using hardcoded fallback secret (version: {})", FALLBACK_SECRET_VERSION);
+		} catch (Exception e) {
+			log.warn("Failed to use hardcoded fallback secret: {}, trying Spotify web scraping", e.getMessage());
+		}
 		
 		try {
 			fetchSecretFromSpotifyWeb();
@@ -306,6 +319,28 @@ public class SpotifyTokenTracker {
 		}
 		
 		return byteValues;
+	}
+	
+	private void useFallbackData() {
+		byte[] decoded = new byte[FALLBACK_SECRET_DATA.length];
+		for (int i = 0; i < FALLBACK_SECRET_DATA.length; i++) {
+			decoded[i] = (byte) (FALLBACK_SECRET_DATA[i] ^ ((i % 33) + 9));
+		}
+
+		StringBuilder hexString = new StringBuilder();
+		for (byte b : decoded) {
+			hexString.append(b);
+		}
+
+		byte[] utf8Bytes = hexString.toString().getBytes(StandardCharsets.UTF_8);
+		StringBuilder finalHex = new StringBuilder();
+		for (byte b : utf8Bytes) {
+			finalHex.append(String.format("%02x", b));
+		}
+
+		this.totpSecret = hexStringToByteArray(finalHex.toString());
+		this.totpVersion = FALLBACK_SECRET_VERSION;
+		this.secretFetchTime = Instant.now();
 	}
 
 	private void fetchSecretFromGitHub() throws IOException {

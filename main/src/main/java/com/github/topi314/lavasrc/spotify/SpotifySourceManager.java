@@ -804,26 +804,72 @@ public class SpotifySourceManager extends MirroringAudioSourceManager implements
 
 	private AudioItem getAlbumFromPartnerAPI(String id, boolean preview) throws IOException {
 		try {
-			var variables = JsonBrowser.newMap();
-			variables.put("uri", "spotify:album:" + id);
-			variables.put("locale", "");
-			variables.put("offset", 0);
-			variables.put("limit", 50);
-			variables.put("enableWatchFeedEntrypoint", false);
+			var tracks = new ArrayList<AudioTrack>();
+			String albumName = null;
+			String albumUrl = null;
+			String artworkUrl = null;
+			String artistName = null;
+			int totalCount = 0;
 
-			var json = queryPartnerAPI("getAlbum", variables);
+			var offset = 0;
+			var limit = 50;
+			var pages = 0;
+			JsonBrowser items;
 
-			if (json == null) {
-				log.debug("Partner API returned null for album {}, falling back to Web API", id);
-				return getAlbumFromWebAPI(id, preview);
-			}
+			do {
+				var variables = JsonBrowser.newMap();
+				variables.put("uri", "spotify:album:" + id);
+				variables.put("locale", "en");
+				variables.put("offset", offset);
+				variables.put("limit", limit);
 
-			var albumData = json.get("data").get("albumUnion");
-			if (albumData.isNull()) {
+				var json = queryPartnerAPI("getAlbum", variables);
+
+				if (json == null) {
+					log.debug("Partner API returned null for album {}, falling back to Web API", id);
+					return getAlbumFromWebAPI(id, preview);
+				}
+
+				var albumData = json.get("data").get("albumUnion");
+				if (albumData.isNull()) {
+					return AudioReference.NO_TRACK;
+				}
+
+				if (offset == 0) {
+					albumName = albumData.get("name").text();
+					albumUrl = albumData.get("uri").text()
+						.replace("spotify:album:", "https://open.spotify.com/album/");
+
+					var coverArt = albumData.get("coverArt").get("sources");
+					if (!coverArt.values().isEmpty()) {
+						artworkUrl = coverArt.index(0).get("url").text();
+					}
+
+					var artists = albumData.get("artists").get("items");
+					if (!artists.values().isEmpty()) {
+						artistName = artists.index(0).get("profile").get("name").text();
+					}
+
+					totalCount = (int) albumData.get("tracks").get("totalCount").asLong(0);
+				}
+
+				items = albumData.get("tracks").get("items");
+				offset += limit;
+
+				for (var trackItem : items.values()) {
+					var track = trackItem.get("track");
+					if (!track.isNull()) {
+						tracks.add(parsePartnerTrack(track, preview));
+					}
+				}
+
+			} while (!items.values().isEmpty() && ++pages < this.albumPageLimit);
+
+			if (tracks.isEmpty()) {
 				return AudioReference.NO_TRACK;
 			}
 
-			return parsePartnerAlbum(albumData, preview);
+			return new SpotifyAudioPlaylist(albumName, tracks, ExtendedAudioPlaylist.Type.ALBUM, albumUrl, artworkUrl, artistName, totalCount);
 
 		} catch (Exception e) {
 			log.warn("Failed to get album from Partner API, falling back to Web API: {}", e.getMessage());
